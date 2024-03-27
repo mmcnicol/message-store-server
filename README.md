@@ -2,8 +2,6 @@
 
 implements a REST API on top of [message store](https://github.com/mmcnicol/message-store) library
 
-[message store sdk](https://github.com/mmcnicol/message-store-sdk)
-
 ## usage
 
 http request:  
@@ -32,3 +30,8 @@ http response body:
     "timestamp": "2022-03-17T15:04:05Z"
 }
 ```
+
+## associated projects
+
+[message store sdk](https://github.com/mmcnicol/message-store-sdk)
+
