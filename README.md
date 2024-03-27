@@ -1,5 +1,7 @@
 # message-store-server
 
+implements a REST API on top of [message store](https://github.com/mmcnicol/message-store) library
+
 ## usage
 
 http request:  
