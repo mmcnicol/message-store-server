@@ -2,6 +2,8 @@
 
 implements a REST API on top of [message store](https://github.com/mmcnicol/message-store) library
 
+[message store sdk](https://github.com/mmcnicol/message-store-sdk)
+
 ## usage
 
 http request:  
