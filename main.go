@@ -19,8 +19,18 @@ type TopicEntry struct {
 	Timestamp time.Time `json:"timestamp"`
 }
 
-// producerHandler handles HTTP requests to send an entry to a message store topic
-func producerHandler(w http.ResponseWriter, r *http.Request) {
+type MockableMessageStore interface {
+	SaveEntry(topic string, entry ms.Entry) (int64, error)
+	ReadEntry(topic string, offset int64) (*ms.Entry, error)
+	PollForNextEntry(topic string, offset int64, pollDuration time.Duration) (*ms.Entry, error)
+}
+
+type MessageStoreClient struct {
+	MessageStore MockableMessageStore
+}
+
+// ProducerHandler handles HTTP requests to send an entry to a message store topic
+func (m *MessageStoreClient) ProducerHandler(w http.ResponseWriter, r *http.Request) {
 	var entry TopicEntry
 	if err := json.NewDecoder(r.Body).Decode(&entry); err != nil {
 		http.Error(w, "invalid request body", http.StatusBadRequest)
@@ -57,8 +67,8 @@ func producerHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	*/
 
-	messageStore := ms.NewMessageStore()
-	offset, err := messageStore.SaveEntry(topic, messageStoreEntry)
+	//messageStore := ms.NewMessageStore()
+	offset, err := m.MessageStore.SaveEntry(topic, messageStoreEntry)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("failed to save event: %v", err), http.StatusInternalServerError)
 		return
@@ -68,8 +78,8 @@ func producerHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 }
 
-// consumerHandler handles HTTP requests to read an entry from a message store topic
-func consumerHandler(w http.ResponseWriter, r *http.Request) {
+// ConsumerHandler handles HTTP requests to read an entry from a message store topic
+func (m *MessageStoreClient) ConsumerHandler(w http.ResponseWriter, r *http.Request) {
 	topic := r.URL.Query().Get("topic")
 	if topic == "" {
 		http.Error(w, "missing 'topic' query parameter", http.StatusBadRequest)
@@ -86,8 +96,8 @@ func consumerHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "error parsing offset", http.StatusBadRequest)
 		return
 	}
-	messageStore := ms.NewMessageStore()
-	entry, err := messageStore.ReadEntry(topic, offset)
+	//messageStore := ms.NewMessageStore()
+	entry, err := m.MessageStore.ReadEntry(topic, offset)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("failed to read events: %v", err), http.StatusInternalServerError)
 		return
@@ -110,8 +120,8 @@ func consumerHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(topicEntry)
 }
 
-// pollHandler handles HTTP requests to poll for next entry in a message store topic
-func pollHandler(w http.ResponseWriter, r *http.Request) {
+// PollingConsumerHandler handles HTTP requests to poll for next entry in a message store topic
+func (m *MessageStoreClient) PollingConsumerHandler(w http.ResponseWriter, r *http.Request) {
 
 	topic := r.URL.Query().Get("topic")
 	if topic == "" {
@@ -143,8 +153,8 @@ func pollHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	messageStore := ms.NewMessageStore()
-	entry, err := messageStore.PollForNextEntry(topic, offset, pollDuration)
+	//messageStore := ms.NewMessageStore()
+	entry, err := m.MessageStore.PollForNextEntry(topic, offset, pollDuration)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("failed to read entry: %v", err), http.StatusInternalServerError)
 		return
@@ -169,9 +179,14 @@ func pollHandler(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 
-	http.HandleFunc("/produce", producerHandler)
-	http.HandleFunc("/consume", consumerHandler)
-	http.HandleFunc("/poll", pollHandler)
+	msgStore := ms.NewMessageStore()
+	m := &MessageStoreClient{
+		MessageStore: msgStore,
+	}
+
+	http.HandleFunc("/produce", m.ProducerHandler)
+	http.HandleFunc("/consume", m.ConsumerHandler)
+	http.HandleFunc("/poll", m.PollingConsumerHandler)
 
 	log.Println("message store server started on :8080")
 	log.Fatal(http.ListenAndServe(":8080", nil))
